@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AVL Tree Visualizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{margin:0;font-family:Segoe UI;background:#0f766e;color:#064e3b}
+.header,.controls,.stats,.canvas-box{
+background:#ecfdf5;padding:20px;border-radius:15px;margin:20px;text-align:center}
+input{padding:12px;border-radius:10px;border:2px solid #10b981}
+button{padding:12px 22px;border:none;border-radius:10px;background:#10b981;color:white;font-weight:bold;margin:5px;cursor:pointer}
+button:hover{background:#059669}
+canvas{background:#ccfbf1;border-radius:15px;width:100%;height:500px}
+.stat{font-size:22px;font-weight:bold}
+</style>
+</head>
+
+<body>
+
+<div class="header"><h1>🌳 AVL Tree Visualizer</h1></div>
+
+<div class="controls">
+<input type="number" id="val" placeholder="Enter number">
+<button onclick="insertNode()">Insert</button>
+<button onclick="deleteNode()">Delete</button>
+<button onclick="searchNode()">Search</button>
+<button onclick="clearTree()">Clear</button>
+</div>
+
+<div class="stats">
+Total Nodes: <span id="count" class="stat">0</span> |
+Tree Height: <span id="height" class="stat">0</span>
+</div>
+
+<div class="header"><h2>🚶 Tree Traversals</h2></div>
+
+<div class="controls">
+<button onclick="showIn()">📊 In-Order</button>
+<button onclick="showPre()">📝 Pre-Order</button>
+<button onclick="showPost()">📉 Post-Order</button>
+<button onclick="showLevel()">🎯 Level-Order</button>
+</div>
+
+<div class="stats" id="resultBox">Traversal results will appear here...</div>
+
+<div class="canvas-box"><canvas id="canvas"></canvas></div>
+
+<script>
+const val=document.getElementById("val"),countEl=document.getElementById("count"),
+heightEl=document.getElementById("height"),canvas=document.getElementById("canvas"),
+resultBox=document.getElementById("resultBox");
+
+class Node{constructor(v){this.v=v;this.l=null;this.r=null;this.h=1;}}
+let root=null,count=0,found=null;
+
+function h(n){return n?n.h:0}
+function bal(n){return n?h(n.l)-h(n.r):0}
+function upd(n){n.h=1+Math.max(h(n.l),h(n.r))}
+
+function rr(y){let x=y.l,t=x.r;x.r=y;y.l=t;upd(y);upd(x);return x}
+function rl(x){let y=x.r,t=y.l;y.l=x;x.r=t;upd(x);upd(y);return y}
+
+function insert(n,v){
+if(!n){count++;return new Node(v)}
+if(v<n.v)n.l=insert(n.l,v); else if(v>n.v)n.r=insert(n.r,v);
+upd(n); let b=bal(n);
+if(b>1&&v<n.l.v)return rr(n);
+if(b<-1&&v>n.r.v)return rl(n);
+if(b>1&&v>n.l.v){n.l=rl(n.l);return rr(n)}
+if(b<-1&&v<n.r.v){n.r=rr(n.r);return rl(n)}
+return n;
+}
+
+function min(n){while(n.l)n=n.l;return n}
+
+function del(n,v){
+if(!n)return n;
+if(v<n.v)n.l=del(n.l,v);
+else if(v>n.v)n.r=del(n.r,v);
+else{
+if(!n.l||!n.r){count--;return n.l||n.r}
+let t=min(n.r);n.v=t.v;n.r=del(n.r,t.v)
+}
+upd(n); let b=bal(n);
+if(b>1&&bal(n.l)>=0)return rr(n);
+if(b>1&&bal(n.l)<0){n.l=rl(n.l);return rr(n)}
+if(b<-1&&bal(n.r)<=0)return rl(n);
+if(b<-1&&bal(n.r)>0){n.r=rr(n.r);return rl(n)}
+return n;
+}
+
+function search(n,v){if(!n)return null;if(v==n.v)return n;return v<n.v?search(n.l,v):search(n.r,v)}
+
+function insertNode(){
+let v=parseInt(val.value); if(isNaN(v))return alert("Enter number");
+if(search(root,v))return alert("Already exists");
+root=insert(root,v); val.value=""; draw();
+}
+function deleteNode(){
+let v=parseInt(val.value); if(isNaN(v))return alert("Enter number");
+root=del(root,v); val.value=""; draw();
+}
+function searchNode(){
+let v=parseInt(val.value); found=search(root,v); draw(); alert(found?"Found":"Not Found");
+}
+function clearTree(){root=null;count=0;found=null;draw();}
+
+function draw(){
+countEl.textContent=count; heightEl.textContent=h(root);
+const ctx=canvas.getContext("2d");
+canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight;
+ctx.clearRect(0,0,canvas.width,canvas.height);
+if(!root){ctx.font="24px Arial";ctx.fillText("Tree Empty",canvas.width/2-60,canvas.height/2);return;}
+drawN(ctx,root,canvas.width/2,50,canvas.width/4);
+}
+function drawN(ctx,n,x,y,off){
+if(n.l){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-off,y+80);ctx.stroke();drawN(ctx,n.l,x-off,y+80,off/2);}
+if(n.r){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+off,y+80);ctx.stroke();drawN(ctx,n.r,x+off,y+80,off/2);}
+ctx.beginPath(); ctx.arc(x,y,22,0,Math.PI*2);
+ctx.fillStyle=found&&found.v==n.v?"orange":"#10b981"; ctx.fill();
+ctx.fillStyle="white"; ctx.fillText(n.v,x-7,y+5);
+}
+
+// Traversals
+function inorder(n,a=[]){if(!n)return a; inorder(n.l,a); a.push(n.v); inorder(n.r,a); return a;}
+function preorder(n,a=[]){if(!n)return a; a.push(n.v); preorder(n.l,a); preorder(n.r,a); return a;}
+function postorder(n,a=[]){if(!n)return a; postorder(n.l,a); postorder(n.r,a); a.push(n.v); return a;}
+function levelorder(n){if(!n)return[];let q=[n],r=[];while(q.length){let c=q.shift();r.push(c.v);if(c.l)q.push(c.l);if(c.r)q.push(c.r);}return r;}
+
+function showIn(){if(!root)return resultBox.innerText="Tree Empty"; resultBox.innerText="In-Order: "+inorder(root).join(" , ");}
+function showPre(){if(!root)return resultBox.innerText="Tree Empty"; resultBox.innerText="Pre-Order: "+preorder(root).join(" , ");}
+function showPost(){if(!root)return resultBox.innerText="Tree Empty"; resultBox.innerText="Post-Order: "+postorder(root).join(" , ");}
+function showLevel(){if(!root)return resultBox.innerText="Tree Empty"; resultBox.innerText="Level-Order: "+levelorder(root).join(" , ");}
+
+draw();
+</script>
+</body>
+</html>
